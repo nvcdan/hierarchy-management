@@ -1,0 +1,17 @@
+# .gitignore
+
+/bin
+/tmp
+/build
+/cache
+
+docker-compose.override.yml
+*.env
+
+.idea/
+.vscode/
+
+*.exe
+*.out
+*.mod
+*.sum
