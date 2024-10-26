@@ -1,29 +1,40 @@
 package middleware
 
 import (
+	"hierarchy-management/internal/response"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
+func abortUnauthorized(c *gin.Context, code, message string) {
+	c.AbortWithStatusJSON(http.StatusUnauthorized, response.APIResponse{
+		IsSuccess: false,
+		Message:   message,
+		Error: map[string]string{
+			"code":    code,
+			"message": message,
+		},
+	})
+}
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "No Authorization header provided"})
+			abortUnauthorized(c, "unauthorized", "No Authorization header provided")
 			return
 		}
 
-		// todo token check
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid Authorization header"})
+			abortUnauthorized(c, "invalid_auth_header", "Authorization header must start with 'Bearer '")
 			return
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		if token != "token" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			abortUnauthorized(c, "invalid_token", "The provided token is invalid")
 			return
 		}
 

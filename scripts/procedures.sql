@@ -2,6 +2,7 @@ USE hierarchy_management;
 
 DELIMITER $$
 
+DROP PROCEDURE IF EXISTS CreateDepartment $$
 CREATE PROCEDURE CreateDepartment (
     IN dept_name VARCHAR(255),
     IN dept_parent_id INT,
@@ -12,6 +13,7 @@ BEGIN
     VALUES (dept_name, dept_parent_id, dept_flags);
 END $$
 
+DROP PROCEDURE IF EXISTS UpdateDepartment $$
 CREATE PROCEDURE UpdateDepartment (
     IN dept_id INT,
     IN dept_name VARCHAR(255),
@@ -26,6 +28,7 @@ BEGIN
     WHERE id = dept_id;
 END $$
 
+DROP PROCEDURE IF EXISTS DeleteDepartment $$
 CREATE PROCEDURE DeleteDepartment (
     IN dept_id INT
 )
@@ -35,23 +38,39 @@ BEGIN
     WHERE id = dept_id;
 END $$
 
+DROP PROCEDURE IF EXISTS GetDepartmentHierarchy $$
 CREATE PROCEDURE GetDepartmentHierarchy (
     IN dept_name VARCHAR(255)
 )
 BEGIN
-    DECLARE dept_id INT;
-    SELECT id INTO dept_id FROM departments WHERE name = dept_name;
-
-    WITH RECURSIVE dept_tree AS (
-        SELECT id, name, parent_id, flags FROM departments WHERE id = dept_id
+    WITH RECURSIVE ancestors AS (
+        SELECT id, name, parent_id, flags
+        FROM departments
+        WHERE name LIKE CONCAT('%', dept_name, '%')
         UNION ALL
         SELECT d.id, d.name, d.parent_id, d.flags
         FROM departments d
-        INNER JOIN dept_tree dt ON dt.id = d.parent_id
+        INNER JOIN ancestors a ON a.parent_id = d.id
+    ),
+    descendants AS (
+        SELECT id, name, parent_id, flags
+        FROM departments
+        WHERE name LIKE CONCAT('%', dept_name, '%')
+        UNION ALL
+        SELECT d.id, d.name, d.parent_id, d.flags
+        FROM departments d
+        INNER JOIN descendants ds ON d.parent_id = ds.id
+    ),
+    dept_tree AS (
+        SELECT * FROM ancestors
+        UNION
+        SELECT * FROM descendants
     )
-    SELECT * FROM dept_tree;
+    SELECT DISTINCT * FROM dept_tree;
 END $$
 
+
+DROP PROCEDURE IF EXISTS GetAllDepartmentsHierarchy $$
 CREATE PROCEDURE GetAllDepartmentsHierarchy()
 BEGIN
     WITH RECURSIVE dept_tree AS (

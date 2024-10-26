@@ -17,8 +17,8 @@ func SetupRouter(deptHandler *handler.DepartmentHandler) *gin.Engine {
 		api.POST("/departments/create", deptHandler.CreateDepartment)
 		api.PUT("/departments/:id/update", deptHandler.UpdateDepartment)
 		api.DELETE("/departments/:id/delete", deptHandler.DeleteDepartment)
-		api.GET("/departments/hierarchy/:name", deptHandler.GetDepartmentHierarchy)
-		api.GET("/departments/hierarchy", deptHandler.GetAllDepartmentsHierarchy)
+		api.GET("/departments/hierarchy", deptHandler.GetDepartmentHierarchy)
+		api.GET("/departments/hierarchy/all", deptHandler.GetAllDepartmentsHierarchy)
 	}
 
 	return router

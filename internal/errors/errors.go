@@ -16,7 +16,7 @@ type NotFoundError struct {
 }
 
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("NotFoundError: %s with ID %d not found", e.Resource, e.ID)
+	return fmt.Sprintf("NotFoundError: %s not found", e.Resource)
 }
 
 type ValidationError struct {
@@ -32,8 +32,8 @@ func NewInternalError(message string) error {
 	return &InternalError{Message: message}
 }
 
-func NewNotFoundError(resource string, id int) error {
-	return &NotFoundError{Resource: resource, ID: id}
+func NewNotFoundError(resource string) error {
+	return &NotFoundError{Resource: resource}
 }
 
 func NewValidationError(field, message string) error {

@@ -3,7 +3,9 @@ package handler
 import (
 	"hierarchy-management/internal/domain"
 	"hierarchy-management/internal/errors"
+	"hierarchy-management/internal/response"
 	"hierarchy-management/internal/service"
+
 	"net/http"
 	"strconv"
 
@@ -14,6 +16,16 @@ type DepartmentHandler struct {
 	service service.DepartmentService
 }
 
+type DepartmentNode struct {
+	ID         int               `json:"id"`
+	Name       string            `json:"name"`
+	ParentID   *int              `json:"parent_id,omitempty"`
+	IsActive   bool              `json:"is_active"`
+	IsDeleted  bool              `json:"is_deleted"`
+	IsApproved bool              `json:"is_approved"`
+	Children   []*DepartmentNode `json:"children,omitempty"`
+}
+
 func NewDepartmentHandler(srv service.DepartmentService) *DepartmentHandler {
 	return &DepartmentHandler{srv}
 }
@@ -21,107 +33,146 @@ func NewDepartmentHandler(srv service.DepartmentService) *DepartmentHandler {
 func (h *DepartmentHandler) CreateDepartment(c *gin.Context) {
 	var dept domain.Department
 	if err := c.ShouldBindJSON(&dept); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewValidationError("department", "Invalid JSON").Error()})
+		response.HandleError(c, errors.NewValidationError("department", "Invalid JSON"))
 		return
 	}
 	err := h.service.CreateDepartment(&dept)
 	if err != nil {
-		handleError(c, err)
+		response.HandleError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Department created"})
+	c.JSON(http.StatusCreated, response.APIResponse{
+		IsSuccess: true,
+		Message:   "Department created successfully",
+	})
 }
 
 func (h *DepartmentHandler) UpdateDepartment(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewValidationError("id", "Invalid ID format").Error()})
+		response.HandleError(c, errors.NewValidationError("id", "Invalid ID format"))
 		return
 	}
 	var dept domain.Department
 	if err := c.ShouldBindJSON(&dept); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewValidationError("department", "Invalid JSON").Error()})
+		response.HandleError(c, errors.NewValidationError("department", "Invalid JSON"))
 		return
 	}
 	dept.ID = id
 	err = h.service.UpdateDepartment(&dept)
 	if err != nil {
-		handleError(c, err)
+		response.HandleError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Department updated"})
+	c.JSON(http.StatusOK, response.APIResponse{
+		IsSuccess: true,
+		Message:   "Department updated successfully",
+	})
 }
 
 func (h *DepartmentHandler) DeleteDepartment(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewValidationError("id", "Invalid ID format").Error()})
+		response.HandleError(c, errors.NewValidationError("id", "Invalid ID format"))
 		return
 	}
 	err = h.service.DeleteDepartment(id)
 	if err != nil {
-		handleError(c, err)
+		response.HandleError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Department deleted"})
+	c.JSON(http.StatusOK, response.APIResponse{
+		IsSuccess: true,
+		Message:   "Department deleted successfully",
+	})
 }
 
 func (h *DepartmentHandler) GetDepartmentHierarchy(c *gin.Context) {
-	name := c.Param("name")
+	name := c.Query("name")
 	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Name parameter is required"})
-		return
-	}
-	hierarchy, err := h.service.GetDepartmentHierarchy(name)
-	if err != nil {
-		handleError(c, err)
+		response.HandleError(c, errors.NewValidationError("name", "Query parameter 'name' is required"))
 		return
 	}
 
-	var response []gin.H
-	for _, dept := range hierarchy {
-		response = append(response, gin.H{
-			"id":          dept.ID,
-			"name":        dept.Name,
-			"parent_id":   dept.ParentID,
-			"is_active":   dept.IsActive(),
-			"is_deleted":  dept.IsDeleted(),
-			"is_approved": dept.IsApproved(),
-		})
+	hierarchy, err := h.service.GetDepartmentHierarchy(name)
+	if err != nil {
+		response.HandleError(c, err)
+		return
 	}
-	c.JSON(http.StatusOK, response)
+
+	deptMap := make(map[int]*DepartmentNode)
+	for _, dept := range hierarchy {
+		node := &DepartmentNode{
+			ID:         dept.ID,
+			Name:       dept.Name,
+			ParentID:   dept.ParentID,
+			IsActive:   dept.IsActive(),
+			IsDeleted:  dept.IsDeleted(),
+			IsApproved: dept.IsApproved(),
+		}
+		deptMap[dept.ID] = node
+	}
+
+	var roots []*DepartmentNode
+	for _, node := range deptMap {
+		if node.ParentID != nil {
+			parentNode, ok := deptMap[*node.ParentID]
+			if ok {
+				parentNode.Children = append(parentNode.Children, node)
+			}
+		}
+		if node.Name == name {
+			roots = append(roots, node)
+		}
+	}
+
+	if len(roots) == 0 {
+		response.HandleError(c, errors.NewNotFoundError("department"))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.APIResponse{
+		IsSuccess: true,
+		Message:   "Department hierarchy retrieved successfully",
+		Data:      roots,
+	})
 }
 
 func (h *DepartmentHandler) GetAllDepartmentsHierarchy(c *gin.Context) {
 	hierarchy, err := h.service.GetAllDepartmentsHierarchy()
 	if err != nil {
-		handleError(c, err)
+		response.HandleError(c, err)
 		return
 	}
 
-	var response []gin.H
+	deptMap := make(map[int]*DepartmentNode)
 	for _, dept := range hierarchy {
-		response = append(response, gin.H{
-			"id":          dept.ID,
-			"name":        dept.Name,
-			"parent_id":   dept.ParentID,
-			"is_active":   dept.IsActive(),
-			"is_deleted":  dept.IsDeleted(),
-			"is_approved": dept.IsApproved(),
-		})
+		node := &DepartmentNode{
+			ID:         dept.ID,
+			Name:       dept.Name,
+			ParentID:   dept.ParentID,
+			IsActive:   dept.IsActive(),
+			IsDeleted:  dept.IsDeleted(),
+			IsApproved: dept.IsApproved(),
+		}
+		deptMap[dept.ID] = node
 	}
-	c.JSON(http.StatusOK, response)
-}
 
-func handleError(c *gin.Context, err error) {
-	switch e := err.(type) {
-	case *errors.InternalError:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": e.Error()})
-	case *errors.NotFoundError:
-		c.JSON(http.StatusNotFound, gin.H{"error": e.Error()})
-	case *errors.ValidationError:
-		c.JSON(http.StatusBadRequest, gin.H{"error": e.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "An unexpected error occurred"})
+	var roots []*DepartmentNode
+	for _, node := range deptMap {
+		if node.ParentID != nil {
+			parentNode, ok := deptMap[*node.ParentID]
+			if ok {
+				parentNode.Children = append(parentNode.Children, node)
+			}
+		} else {
+			roots = append(roots, node)
+		}
 	}
+
+	c.JSON(http.StatusOK, response.APIResponse{
+		IsSuccess: true,
+		Message:   "Department hierarchy retrieved successfully",
+		Data:      roots,
+	})
 }

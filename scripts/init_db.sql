@@ -9,3 +9,6 @@ CREATE TABLE departments (
     flags TINYINT(1) NOT NULL DEFAULT 0,
     FOREIGN KEY (parent_id) REFERENCES departments(id)
 );
+
+ALTER TABLE departments
+ADD CONSTRAINT unique_department_name UNIQUE (name);
