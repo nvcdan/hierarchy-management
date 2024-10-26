@@ -47,6 +47,11 @@ func mapErrorToResponse(err error) (int, interface{}) {
 				Message: e.Error(),
 			},
 		}
+	case *errors.DuplicateEntryError:
+		return http.StatusConflict, ErrorResponse{
+			Code:    "duplicate_entry",
+			Message: e.Error(),
+		}
 	default:
 		return http.StatusInternalServerError, ErrorResponse{
 			Code:    "unknown_error",

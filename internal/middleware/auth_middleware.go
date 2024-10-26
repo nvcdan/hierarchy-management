@@ -3,6 +3,7 @@ package middleware
 import (
 	"hierarchy-management/internal/response"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != "token" {
+		if token != os.Getenv("JWT_SECRET") {
 			abortUnauthorized(c, "invalid_token", "The provided token is invalid")
 			return
 		}

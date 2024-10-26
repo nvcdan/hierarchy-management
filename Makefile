@@ -1,42 +1,40 @@
-SERVICE_NAME := app 
+SERVICE_NAME := app
+COMPOSE := docker-compose
+DOCKER_SYSTEM_PRUNE := docker system prune -f
+TEST_SERVICE := test
+DB_SERVICE := db
+DB_TEST_SERVICE := db_test
 
-run:
-	docker-compose up --build -d
+.PHONY: run run-tests build up stop restart logs sh down cleanup help
 
-run-tests:
-	docker-compose run $(SERVICE_NAME) go test -v ./...
+
+run: 
+	$(COMPOSE) up --build -d
+
+run-tests: down
+	$(COMPOSE) up --build $(TEST_SERVICE)
 
 build:
-	docker-compose build
+	$(COMPOSE) build
 
 up:
-	docker-compose up -d
+	$(COMPOSE) up -d $(SERVICE_NAME) $(DB_SERVICE)
+
 
 stop:
-	docker-compose stop
+	$(COMPOSE) stop
 
 restart:
-	docker-compose restart
+	$(COMPOSE) restart
 
 logs:
-	docker-compose logs -f $(SERVICE_NAME)
+	$(COMPOSE) logs -f $(SERVICE_NAME)
 
 sh:
-	docker-compose exec $(SERVICE_NAME) /bin/sh
+	$(COMPOSE) exec $(SERVICE_NAME) /bin/sh
 
-down:
-	docker-compose down -v
+down: 
+	$(COMPOSE) down -v
 
-cleanup:
-	docker system prune -f
-
-help:
-	@echo "Makefile commands for Docker Compose:"
-	@echo "  build     - Build the Docker images"
-	@echo "  up        - Start services in detached mode"
-	@echo "  stop      - Stop the services"
-	@echo "  restart   - Restart the services"
-	@echo "  logs      - View logs of the services"
-	@echo "  sh        - Access the service's shell"
-	@echo "  down      - Stop and remove services, networks, and volumes"
-	@echo "  cleanup   - Remove unused Docker images and containers"
+cleanup: 
+	$(DOCKER_SYSTEM_PRUNE)

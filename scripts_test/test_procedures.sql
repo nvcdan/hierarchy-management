@@ -1,4 +1,4 @@
-USE hierarchy_management;
+USE hierarchy_management_test;
 
 DELIMITER $$
 

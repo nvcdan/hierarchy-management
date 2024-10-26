@@ -24,6 +24,12 @@ type ValidationError struct {
 	Message string
 }
 
+type DuplicateEntryError struct {
+	Resource string
+	Field    string
+	Value    string
+}
+
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("ValidationError: %s - %s", e.Field, e.Message)
 }
@@ -38,4 +44,16 @@ func NewNotFoundError(resource string) error {
 
 func NewValidationError(field, message string) error {
 	return &ValidationError{Field: field, Message: message}
+}
+
+func (e *DuplicateEntryError) Error() string {
+	return fmt.Sprintf("%s with %s '%s' already exists", e.Resource, e.Field, e.Value)
+}
+
+func NewDuplicateEntryError(resource, field, value string) error {
+	return &DuplicateEntryError{
+		Resource: resource,
+		Field:    field,
+		Value:    value,
+	}
 }

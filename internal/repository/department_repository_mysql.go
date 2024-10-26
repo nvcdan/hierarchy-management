@@ -18,6 +18,24 @@ func (r *departmentRepository) Create(dept *domain.Department) error {
 	return err
 }
 
+func (r *departmentRepository) IsDuplicateDepartmentName(name string) bool {
+	var isDuplicate bool
+	err := r.db.QueryRow("CALL IsDuplicateDepartmentName(?)", name).Scan(&isDuplicate)
+	if err != nil && err != sql.ErrNoRows {
+		return false
+	}
+	return isDuplicate
+}
+
+func (r *departmentRepository) ExistsByID(id int) bool {
+	var idExists bool
+	err := r.db.QueryRow("CALL ExistsByID(?)", id).Scan(&idExists)
+	if err != nil && err != sql.ErrNoRows {
+		return false
+	}
+	return idExists
+}
+
 func (r *departmentRepository) Update(dept *domain.Department) error {
 	_, err := r.db.Exec("CALL UpdateDepartment(?, ?, ?, ?)", dept.ID, dept.Name, dept.ParentID, dept.Flags)
 	return err
