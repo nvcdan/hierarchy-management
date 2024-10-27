@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(deptHandler *handler.DepartmentHandler) *gin.Engine {
+func SetupRouter(deptHandler *handler.DepartmentHandler, authHandler *handler.AuthHandler) *gin.Engine {
 	router := gin.Default()
 
 	config := cors.DefaultConfig()
@@ -16,15 +16,20 @@ func SetupRouter(deptHandler *handler.DepartmentHandler) *gin.Engine {
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 
 	router.Use(cors.New(config))
-	router.Use(middleware.AuthMiddleware())
 
 	api := router.Group("/api")
 	{
-		api.POST("/departments/create", deptHandler.CreateDepartment)
-		api.PUT("/departments/:id/update", deptHandler.UpdateDepartment)
-		api.DELETE("/departments/:id/delete", deptHandler.DeleteDepartment)
-		api.GET("/departments/hierarchy", deptHandler.GetDepartmentHierarchy)
-		api.GET("/departments/hierarchy/all", deptHandler.GetAllDepartmentsHierarchy)
+		api.POST("/login", authHandler.Login)
+
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			protected.POST("/departments/create", deptHandler.CreateDepartment)
+			protected.PUT("/departments/:id/update", deptHandler.UpdateDepartment)
+			protected.DELETE("/departments/:id/delete", deptHandler.DeleteDepartment)
+			protected.GET("/departments/hierarchy", deptHandler.GetDepartmentHierarchy)
+			protected.GET("/departments/hierarchy/all", deptHandler.GetAllDepartmentsHierarchy)
+		}
 	}
 
 	return router

@@ -24,11 +24,16 @@ func main() {
 	}
 	defer database.Close()
 
-	repo := repository.NewDepartmentRepository(database)
-	deptService := service.NewDepartmentService(repo)
-	deptHandler := handler.NewDepartmentHandler(deptService)
+	deptRepo := repository.NewDepartmentRepository(database)
+	userRepo := repository.NewUserRepository()
 
-	router := routes.SetupRouter(deptHandler)
+	deptService := service.NewDepartmentService(deptRepo)
+	userService := service.NewUserService(userRepo)
+
+	deptHandler := handler.NewDepartmentHandler(deptService)
+	authHandler := handler.NewAuthHandler(userService)
+
+	router := routes.SetupRouter(deptHandler, authHandler)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

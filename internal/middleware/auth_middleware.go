@@ -1,11 +1,13 @@
 package middleware
 
 import (
+	"errors"
 	"hierarchy-management/internal/response"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,10 +35,23 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != os.Getenv("JWT_SECRET") {
-			abortUnauthorized(c, "invalid_token", "The provided token is invalid")
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("unexpected signing method")
+			}
+			return []byte(os.Getenv("JWT_SECRET")), nil
+		})
+
+		if err != nil || !token.Valid {
+			abortUnauthorized(c, "invalid_token", "Invalid or expired token")
 			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if ok && token.Valid {
+			c.Set("username", claims["username"])
 		}
 
 		c.Next()

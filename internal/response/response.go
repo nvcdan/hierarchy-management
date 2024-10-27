@@ -52,6 +52,11 @@ func mapErrorToResponse(err error) (int, interface{}) {
 			Code:    "duplicate_entry",
 			Message: e.Error(),
 		}
+	case *errors.AuthenticationError:
+		return http.StatusUnauthorized, ErrorResponse{
+			Code:    "authentication_failed",
+			Message: e.Message,
+		}
 	default:
 		return http.StatusInternalServerError, ErrorResponse{
 			Code:    "unknown_error",

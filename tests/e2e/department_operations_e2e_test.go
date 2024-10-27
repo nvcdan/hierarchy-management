@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"hierarchy-management/internal/db"
 	"hierarchy-management/internal/handler"
 	"hierarchy-management/internal/repository"
@@ -27,17 +28,32 @@ func setupRouter() *gin.Engine {
 	os.Setenv("DB_USER", os.Getenv("TEST_DB_USER"))
 	os.Setenv("DB_PASS", os.Getenv("TEST_DB_PASS"))
 	os.Setenv("DB_NAME", os.Getenv("TEST_DB_NAME"))
+	os.Setenv("JWT_TOKEN", os.Getenv("TEST_JWT_TOKEN"))
 
 	database, _ := db.NewDB()
-	repo := repository.NewDepartmentRepository(database)
-	deptService := service.NewDepartmentService(repo)
+	deptRepo := repository.NewDepartmentRepository(database)
+	userRepo := repository.NewUserRepository()
+
+	deptService := service.NewDepartmentService(deptRepo)
+	userService := service.NewUserService(userRepo)
+
 	deptHandler := handler.NewDepartmentHandler(deptService)
-	router := routes.SetupRouter(deptHandler)
+	authHandler := handler.NewAuthHandler(userService)
+	router := routes.SetupRouter(deptHandler, authHandler)
 	return router
+}
+
+func getAuthTokenFromEnv() string {
+	token := os.Getenv("JWT_TOKEN")
+	if token == "" {
+		fmt.Println("JWT_TOKEN not found in environment")
+	}
+	return "Bearer " + token
 }
 
 func TestCreateDepartmentE2E(t *testing.T) {
 	router := setupRouter()
+	authToken := getAuthTokenFromEnv()
 
 	dept := map[string]interface{}{
 		"name":  "IT Department",
@@ -45,7 +61,7 @@ func TestCreateDepartmentE2E(t *testing.T) {
 	}
 	jsonValue, _ := json.Marshal(dept)
 	req, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Authorization", authToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -65,6 +81,7 @@ func TestCreateDepartmentE2E(t *testing.T) {
 
 func TestUpdateDepartmentE2E(t *testing.T) {
 	router := setupRouter()
+	authToken := getAuthTokenFromEnv()
 
 	dept := map[string]interface{}{
 		"name":  "HR Department",
@@ -72,7 +89,7 @@ func TestUpdateDepartmentE2E(t *testing.T) {
 	}
 	jsonValue, _ := json.Marshal(dept)
 	req, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Authorization", authToken)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -86,7 +103,7 @@ func TestUpdateDepartmentE2E(t *testing.T) {
 	}
 	jsonValueUpdate, _ := json.Marshal(deptUpdate)
 	reqUpdate, _ := http.NewRequest("PUT", "/api/departments/"+strconv.Itoa(deptID)+"/update", bytes.NewBuffer(jsonValueUpdate))
-	reqUpdate.Header.Set("Authorization", "Bearer token")
+	reqUpdate.Header.Set("Authorization", authToken)
 	reqUpdate.Header.Set("Content-Type", "application/json")
 	wUpdate := httptest.NewRecorder()
 	router.ServeHTTP(wUpdate, reqUpdate)
@@ -105,6 +122,7 @@ func TestUpdateDepartmentE2E(t *testing.T) {
 
 func TestDeleteDepartmentE2E(t *testing.T) {
 	router := setupRouter()
+	authToken := getAuthTokenFromEnv()
 
 	dept := map[string]interface{}{
 		"name":  "Marketing Department",
@@ -112,7 +130,7 @@ func TestDeleteDepartmentE2E(t *testing.T) {
 	}
 	jsonValue, _ := json.Marshal(dept)
 	req, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonValue))
-	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Authorization", authToken)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -121,7 +139,7 @@ func TestDeleteDepartmentE2E(t *testing.T) {
 	deptID := 1
 
 	reqDelete, _ := http.NewRequest("DELETE", "/api/departments/"+strconv.Itoa(deptID)+"/delete", nil)
-	reqDelete.Header.Set("Authorization", "Bearer token")
+	reqDelete.Header.Set("Authorization", authToken)
 	wDelete := httptest.NewRecorder()
 	router.ServeHTTP(wDelete, reqDelete)
 
@@ -139,6 +157,7 @@ func TestDeleteDepartmentE2E(t *testing.T) {
 
 func TestGetDepartmentHierarchyE2E(t *testing.T) {
 	router := setupRouter()
+	authToken := getAuthTokenFromEnv()
 
 	parentDept := map[string]interface{}{
 		"name":  "Parent Department",
@@ -146,7 +165,7 @@ func TestGetDepartmentHierarchyE2E(t *testing.T) {
 	}
 	jsonParent, _ := json.Marshal(parentDept)
 	reqParent, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonParent))
-	reqParent.Header.Set("Authorization", "Bearer token")
+	reqParent.Header.Set("Authorization", authToken)
 	reqParent.Header.Set("Content-Type", "application/json")
 	wParent := httptest.NewRecorder()
 	router.ServeHTTP(wParent, reqParent)
@@ -161,14 +180,14 @@ func TestGetDepartmentHierarchyE2E(t *testing.T) {
 	}
 	jsonChild, _ := json.Marshal(childDept)
 	reqChild, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonChild))
-	reqChild.Header.Set("Authorization", "Bearer token")
+	reqChild.Header.Set("Authorization", authToken)
 	reqChild.Header.Set("Content-Type", "application/json")
 	wChild := httptest.NewRecorder()
 	router.ServeHTTP(wChild, reqChild)
 	assert.Equal(t, http.StatusCreated, wChild.Code)
 
 	reqGet, _ := http.NewRequest("GET", "/api/departments/hierarchy?name=Parent Department", nil)
-	reqGet.Header.Set("Authorization", "Bearer token")
+	reqGet.Header.Set("Authorization", authToken)
 	wGet := httptest.NewRecorder()
 	router.ServeHTTP(wGet, reqGet)
 
@@ -187,6 +206,7 @@ func TestGetDepartmentHierarchyE2E(t *testing.T) {
 
 func TestGetAllDepartmentsHierarchyE2E(t *testing.T) {
 	router := setupRouter()
+	authToken := getAuthTokenFromEnv()
 
 	departments := []map[string]interface{}{
 		{
@@ -202,7 +222,7 @@ func TestGetAllDepartmentsHierarchyE2E(t *testing.T) {
 	for _, dept := range departments {
 		jsonValue, _ := json.Marshal(dept)
 		req, _ := http.NewRequest("POST", "/api/departments/create", bytes.NewBuffer(jsonValue))
-		req.Header.Set("Authorization", "Bearer token")
+		req.Header.Set("Authorization", authToken)
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -210,7 +230,7 @@ func TestGetAllDepartmentsHierarchyE2E(t *testing.T) {
 	}
 
 	reqGet, _ := http.NewRequest("GET", "/api/departments/hierarchy/all", nil)
-	reqGet.Header.Set("Authorization", "Bearer token")
+	reqGet.Header.Set("Authorization", authToken)
 	wGet := httptest.NewRecorder()
 	router.ServeHTTP(wGet, reqGet)
 
